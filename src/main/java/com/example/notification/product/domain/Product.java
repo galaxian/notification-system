@@ -20,7 +20,6 @@ public class Product {
 	@Column
 	private Integer restockRound;
 
-	@Enumerated(EnumType.STRING)
 	@Column
-	private StockStatus stockStatus;
+	private Integer stock;
 }
