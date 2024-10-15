@@ -48,4 +48,57 @@ public class RestockNotificationService {
 		notificationHistory.updateLastSendUserAndStatus(lastSentUserId);
 		productNotificationHistoryRepository.save(notificationHistory);
 	}
+
+	private Product findProductById(Long productId) {
+		return productRepository.findById(productId)
+			.orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다."));
+	}
+
+	private ProductNotificationHistory createAndSaveNotificationHistory(int restockRound, Product product) {
+		ProductNotificationHistory notificationHistory = new ProductNotificationHistory(restockRound, product);
+		productNotificationHistoryRepository.save(notificationHistory);
+		return notificationHistory;
+	}
+
+	private Long sendNotifications(List<ProductUserNotification> notificationList, int restockRound,
+		Product product, ProductNotificationHistory notificationHistory) {
+		Long lastSentUserId = null;
+
+		for (ProductUserNotification notification : notificationList) {
+			try {
+				sendNotificationToUser(notification, restockRound, product);
+				lastSentUserId = notification.getUserId();
+
+				if (product.isOutOfStock()) {
+					updateNotificationHistory(notificationHistory, lastSentUserId);
+					return lastSentUserId;
+				}
+			} catch (Exception e) {
+				handleNotificationException(notificationHistory, lastSentUserId, e);
+			}
+		}
+
+		updateNotificationHistory(notificationHistory, lastSentUserId);
+		return lastSentUserId;
+	}
+
+	private void updateNotificationHistory(ProductNotificationHistory notificationHistory, Long lastSentUserId) {
+		notificationHistory.updateLastSendUserAndStatus(lastSentUserId);
+		productNotificationHistoryRepository.save(notificationHistory);
+	}
+
+	private void handleNotificationException(ProductNotificationHistory notificationHistory, Long lastSentUserId, Exception e) {
+		updateNotificationHistory(notificationHistory, lastSentUserId);
+		throw new RuntimeException("알림 전송 중 오류 발생", e);
+	}
+
+
+	private void sendNotificationToUser(ProductUserNotification notification, int restockRound, Product product) {
+		// todo: 알림 전송 로직
+
+		ProductUserNotificationHistory productUserNotificationHistory = new ProductUserNotificationHistory(
+			notification.getUserId(), restockRound, product);
+
+		productUserNotificationHistoryRepository.save(productUserNotificationHistory);
+	}
 }
