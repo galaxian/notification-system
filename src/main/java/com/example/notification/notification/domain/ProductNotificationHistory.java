@@ -11,8 +11,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @Entity
 public class ProductNotificationHistory {
@@ -34,4 +37,15 @@ public class ProductNotificationHistory {
 	@ManyToOne
 	@JoinColumn(name = "productId")
 	private Product product;
+
+	public ProductNotificationHistory(Integer restockRound, Product product) {
+		this.restockRound = restockRound;
+		this.notificationStatus = NotificationStatus.IN_PROGRESS;
+		this.product = product;
+	}
+
+	public void updateLastSendUserAndStatus(Long userId) {
+		this.lastSendUserId = userId;
+		this.notificationStatus = NotificationStatus.CANCELED_BY_SOLD_OUT;
+	}
 }
