@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class RestockNotificationService {
 
+	private static final int NOTIFICATION_CNT = 500;
+
 	private final ProductRepository productRepository;
 	private final ProductNotificationHistoryRepository productNotificationHistoryRepository;
 	private final ProductUserNotificationRepository productUserNotificationRepository;
@@ -64,7 +66,39 @@ public class RestockNotificationService {
 		Product product, ProductNotificationHistory notificationHistory) {
 		Long lastSentUserId = null;
 
-		for (ProductUserNotification notification : notificationList) {
+		int totalNotificationCnt = notificationList.size();
+		int cnt = (int)Math.ceil((double)totalNotificationCnt / NOTIFICATION_CNT);
+
+		//  500개씩 끊어서 1사이클 알림
+		for (int i = 0; i < cnt; i++) {
+			List<ProductUserNotification> totalNotificationListByOneTime = notificationList.subList(
+				i * NOTIFICATION_CNT, Math.min((i + 1) * NOTIFICATION_CNT, totalNotificationCnt)
+			);
+
+			lastSentUserId = processNotificationByOneTime(totalNotificationListByOneTime, restockRound, product,
+				notificationHistory, lastSentUserId);
+
+			// 요구사항에 따른 1초 대기
+			// todo ?? 500개 알림이 1초를 넘을 경우는?
+			pauseBetweenTime();
+		}
+
+		updateNotificationHistory(notificationHistory, lastSentUserId);
+		return lastSentUserId;
+	}
+
+	private static void pauseBetweenTime() {
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	private Long processNotificationByOneTime(List<ProductUserNotification> totalNotificationListByOneTime,
+		int restockRound, Product product, ProductNotificationHistory notificationHistory, Long lastSentUserId) {
+
+		for (ProductUserNotification notification : totalNotificationListByOneTime) {
 			try {
 				sendNotificationToUser(notification, restockRound, product);
 				lastSentUserId = notification.getUserId();
@@ -77,8 +111,6 @@ public class RestockNotificationService {
 				handleNotificationException(notificationHistory, lastSentUserId, e);
 			}
 		}
-
-		updateNotificationHistory(notificationHistory, lastSentUserId);
 		return lastSentUserId;
 	}
 
